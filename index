@@ -1,0 +1,2063 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aplikasi Ekstrakurikuler SMADITA</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome CDN -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            smaditaRed: '#8B0000',
+            smaditaRedHover: '#6B0000',
+            smaditaLight: '#F9FAFB',
+            smaditaGray: '#4B5563'
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @media print {
+      @page {
+        size: auto;
+        margin: 12mm;
+      }
+      html, body {
+        height: auto !important;
+        overflow: visible !important;
+        background: white !important;
+      }
+      /* Sembunyikan seluruh elemen utama web saat print */
+      #topNavbar, #sidebarNav, footer, #alertBox, .no-print {
+        display: none !important;
+      }
+      main, #viewContainer, #reportPreviewWrapper, .main-card-wrapper {
+        padding: 0 !important;
+        margin: 0 !important;
+        border: none !important;
+        box-shadow: none !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        display: block !important;
+      }
+      #printArea {
+        display: block !important;
+        width: 100% !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        border: none !important;
+        background: white !important;
+      }
+    }
+  </style>
+</head>
+<body class="bg-gray-100 font-sans text-gray-800 antialiased min-h-screen flex flex-col">
+
+  <!-- TOP HEADER / NAVBAR -->
+  <header id="topNavbar" class="hidden bg-smaditaRed text-white shadow-md sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
+      <div class="flex items-center space-x-3">
+        <button id="hamburgerBtn" onclick="toggleSidebar()" class="text-white focus:outline-none md:hidden">
+          <i class="fa-solid fa-bars text-xl"></i>
+        </button>
+        <div class="flex items-center space-x-2">
+          <img src="https://i.ibb.co.com/3ysFVhxP/IMG-5d0357f5-f1cf-4422-b59c-402168b0b72f.png" alt="Logo SMADITA" class="h-8 w-auto">
+          <span class="font-bold text-lg tracking-wide hidden sm:inline">EKSKUL SMADITA</span>
+        </div>
+      </div>
+      <div class="flex items-center space-x-4">
+        <div class="text-right text-xs sm:text-sm">
+          <span id="navUserName" class="font-semibold block">User</span>
+          <span id="navUserRole" class="text-red-200 text-xs uppercase">Role</span>
+        </div>
+        <button onclick="logout()" class="bg-red-900 hover:bg-black text-white text-xs px-3 py-1.5 rounded transition">
+          <i class="fa-solid fa-right-from-bracket"></i> Logout
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <div class="flex flex-1 relative">
+    <!-- SIDEBAR NAV -->
+    <aside id="sidebarNav" class="hidden fixed md:relative z-40 w-64 bg-white border-r min-h-screen shadow-sm transition-all">
+      <div class="p-4 border-b bg-gray-50 flex justify-between items-center">
+        <span class="font-bold text-gray-700 text-sm"><i class="fa-solid fa-compass mr-2"></i>NAVIGASI</span>
+        <button onclick="toggleSidebar()" class="md:hidden text-gray-500"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <nav id="menuList" class="p-4 space-y-1 text-sm">
+        <!-- Rendered dynamically by JS -->
+      </nav>
+    </aside>
+
+    <!-- MAIN CONTENT AREA -->
+    <main class="flex-1 p-4 md:p-6 max-w-7xl mx-auto w-full">
+      <!-- GLOBAL NOTIFICATION ALERT -->
+      <div id="alertBox" class="hidden mb-4 p-4 rounded-lg text-sm flex justify-between items-center transition-all">
+        <span id="alertMessage"></span>
+        <button onclick="closeAlert()"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <!-- VIEW CONTAINER -->
+      <div id="viewContainer">
+        <!-- Views injected here -->
+      </div>
+    </main>
+  </div>
+
+  <!-- FOOTER -->
+  <footer class="bg-white border-t py-4 text-center text-xs text-gray-500 mt-auto">
+    <p>&copy; 2026 SMAS Diponegoro Tumpang (SMADITA) | Ujian Praktik Informatika</p>
+  </footer>
+
+  <!-- SCRIPT LOGIC -->
+  <script>
+    // ==========================================
+    // KONFIGURASI GOOGLE SHEET (HOSTING GITHUB)
+    // Tempel URL lengkap atau ID Google Sheet Anda di bawah ini:
+    // Contoh URL: https://docs.google.com/spreadsheets/d/1AbCdEfGhIjKlMnOpQrStUvWxYz/edit
+    // Contoh ID : 1AbCdEfGhIjKlMnOpQrStUvWxYz
+    // ==========================================
+    const GSHEET_URL_OR_ID = 'AKfycbxu8RhK6RXa8Q1VrQgOwqe6982RQ3ijKqf4VBauvL6zDTq08CJLeriMw5DNbLCM1IyC';
+    const APPS_SCRIPT_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbxu8RhK6RXa8Q1VrQgOwqe6982RQ3ijKqf4VBauvL6zDTq08CJLeriMw5DNbLCM1IyC/exec';
+
+    function extractGsheetId(input) {
+      if (!input || input === 'TEMPEL_URL_ATAU_ID_GSHEET_ANDA_DI_SINI') return '';
+      const match = String(input).trim().match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+      return match ? match[1] : String(input).trim();
+    }
+
+    const ACTIVE_GSHEET_ID = extractGsheetId(GSHEET_URL_OR_ID);
+
+    // Fallback mock agar aplikasi tetap dapat dijalankan saat mode Preview di luar Google Apps Script
+    if (typeof window.google === 'undefined' || !window.google.script) {
+      window.google = {
+        script: {
+          run: new Proxy({}, {
+            get(_, prop) {
+              if (prop === 'withSuccessHandler' || prop === 'withFailureHandler') {
+                return function(cb) {
+                  if (prop === 'withSuccessHandler') this._onSuccess = cb;
+                  return this;
+                };
+              }
+              return function(...args) {
+                const onSuccess = this._onSuccess || function() {};
+                const mockDB = {
+                  ekskul: [
+                    { ekskulID: 'EKS-001', namaEkskul: 'Pramuka', jadwal: 'Jumat, 14.30 WIB', pelatihID: '', namaPelatih: '', hasCoach: false },
+                    { ekskulID: 'EKS-002', namaEkskul: 'Paskibra', jadwal: 'Sabtu, 08.00 WIB', pelatihID: '', namaPelatih: '', hasCoach: false },
+                    { ekskulID: 'EKS-003', namaEkskul: 'Futsal', jadwal: 'Rabu, 15.30 WIB', pelatihID: '', namaPelatih: '', hasCoach: false }
+                  ],
+                  pelatih: [],
+                  siswa: []
+                };
+                setTimeout(() => {
+                  switch (prop) {
+                    case 'getPublicEkskulList':
+                      onSuccess(mockDB.ekskul);
+                      break;
+                    case 'loginUser':
+                      onSuccess({
+                        success: true,
+                        user: { userID: 'USR-ADMIN', username: args[0] || 'admin', fullName: 'Administrator Preview', role: 'ADMIN', refID: 'ADM-01', ekskulID: '' }
+                      });
+                      break;
+                    case 'registerUser':
+                      onSuccess({ success: true, message: 'Registrasi simulasi berhasil! Silakan login.' });
+                      break;
+                    case 'getMasterSelects':
+                      onSuccess(mockDB);
+                      break;
+                    case 'getDashboardData':
+                      onSuccess({
+                        settings: { semester: 'Ganjil', tahunAjaran: '2026/2027' },
+                        stats: { totalSiswa: 0, totalPelatih: 0, totalEkskul: mockDB.ekskul.length, pendingUsers: 0 },
+                        assignedEkskul: [],
+                        myEkskul: []
+                      });
+                      break;
+                    case 'getAllEkskulDetail':
+                      onSuccess(mockDB.ekskul);
+                      break;
+                    case 'uploadDokumentasiDrive':
+                      onSuccess({ success: true, url: '#preview-media-uploaded' });
+                      break;
+                    case 'saveEkskulCustom':
+                    case 'deleteEkskulCustom':
+                    case 'savePresensi':
+                    case 'saveJurnal':
+                    case 'deleteJurnal':
+                    case 'saveNilai':
+                    case 'updateUserStatus':
+                    case 'saveSettings':
+                      onSuccess({ success: true, message: 'Data berhasil disimpan (Mode Preview).' });
+                      break;
+                    default:
+                      onSuccess([]);
+                  }
+                }, 150);
+              };
+            }
+          })
+        }
+      };
+    }
+
+    // Global State
+    let currentUser = null;
+    let masterSelects = { ekskul: [], pelatih: [], siswa: [] };
+    let appSettings = { semester: 'Ganjil', tahunAjaran: '2026/2027' };
+    let publicEkskulList = [];
+    let currentReportData = [];
+    let currentReportType = '';
+
+    // Initial Load
+    window.onload = function() {
+      const savedUser = localStorage.getItem('smadita_user');
+      if (savedUser) {
+        currentUser = JSON.parse(savedUser);
+        initDashboard();
+      } else {
+        renderLogin();
+      }
+    };
+
+    function showAlert(msg, type = 'success') {
+      const box = document.getElementById('alertBox');
+      const msgEl = document.getElementById('alertMessage');
+      box.className = `mb-4 p-4 rounded-lg text-sm flex justify-between items-center transition-all ${
+        type === 'success' ? 'bg-green-100 border border-green-300 text-green-800' : 'bg-red-100 border border-red-300 text-red-800'
+      }`;
+      msgEl.innerText = msg;
+      box.classList.remove('hidden');
+      setTimeout(() => box.classList.add('hidden'), 5000);
+    }
+
+    function closeAlert() {
+      document.getElementById('alertBox').classList.add('hidden');
+    }
+
+    function toggleSidebar() {
+      const sidebar = document.getElementById('sidebarNav');
+      sidebar.classList.toggle('hidden');
+    }
+
+    function refreshMasterSelects(callback) {
+      google.script.run
+        .withSuccessHandler(data => {
+          masterSelects = data;
+          if (callback) callback();
+        })
+        .getMasterSelects(currentUser);
+    }
+
+    // ==========================================
+    // AUTHENTICATION VIEWS
+    // ==========================================
+
+    function renderLogin() {
+      document.getElementById('topNavbar').classList.add('hidden');
+      document.getElementById('sidebarNav').classList.add('hidden');
+
+      const container = document.getElementById('viewContainer');
+      container.innerHTML = `
+        <div class="max-w-md mx-auto mt-8 bg-white p-8 rounded-xl shadow-lg border border-gray-100">
+          <div class="text-center mb-6">
+            <img src="https://i.ibb.co.com/3ysFVhxP/IMG-5d0357f5-f1cf-4422-b59c-402168b0b72f.png" alt="Logo SMADITA" class="h-20 mx-auto mb-3">
+            <h2 class="text-2xl font-bold text-smaditaRed">EKSTRAKURIKULER SMADITA</h2>
+            <p class="text-xs text-gray-500 mt-1">SMAS Diponegoro Tumpang - Kab. Malang</p>
+          </div>
+
+          <form onsubmit="handleLogin(event)" class="space-y-4">
+            <div>
+              <label class="block text-xs font-semibold text-gray-600 mb-1">Username</label>
+              <input type="text" id="loginUsername" required class="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-smaditaRed">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-gray-600 mb-1">Password</label>
+              <div class="relative">
+                <input type="password" id="loginPassword" required class="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-smaditaRed">
+                <button type="button" onclick="togglePassword('loginPassword')" class="absolute right-3 top-2.5 text-gray-400 text-xs">
+                  <i class="fa-solid fa-eye"></i>
+                </button>
+              </div>
+            </div>
+            <button type="submit" id="btnLogin" class="w-full bg-smaditaRed hover:bg-smaditaRedHover text-white py-2.5 rounded-lg text-sm font-semibold transition">
+              <i class="fa-solid fa-right-to-bracket mr-2"></i> Masuk
+            </button>
+          </form>
+
+          <div class="mt-6 text-center text-xs text-gray-500 border-t pt-4">
+            Belum punya akun? <button onclick="renderRegister()" class="text-smaditaRed font-semibold hover:underline">Registrasi Akun</button>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderRegister() {
+      const container = document.getElementById('viewContainer');
+      container.innerHTML = `<div class="text-center py-8"><i class="fa-solid fa-spinner fa-spin text-2xl text-smaditaRed"></i><p class="text-xs text-gray-500 mt-2">Memuat Form Registrasi...</p></div>`;
+
+      google.script.run
+        .withSuccessHandler(list => {
+          publicEkskulList = list;
+          container.innerHTML = `
+            <div class="max-w-md mx-auto mt-6 bg-white p-8 rounded-xl shadow-lg border border-gray-100">
+              <div class="text-center mb-6">
+                <h2 class="text-xl font-bold text-smaditaRed">Pendaftaran Akun Baru</h2>
+                <p class="text-xs text-gray-500">Daftar sebagai Pelatih atau Siswa</p>
+              </div>
+
+              <form onsubmit="handleRegister(event)" class="space-y-4">
+                <div>
+                  <label class="block text-xs font-semibold text-gray-600 mb-1">Daftar Sebagai</label>
+                  <select id="regRole" required class="w-full border rounded-lg px-3 py-2 text-sm bg-white" onchange="toggleRefIDInput()">
+                    <option value="PELATIH">Pelatih Ekstrakurikuler</option>
+                    <option value="SISWA">Siswa</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-xs font-semibold text-gray-600 mb-1">Nama Lengkap</label>
+                  <input type="text" id="regFullName" required class="w-full border rounded-lg px-3 py-2 text-sm">
+                </div>
+                <div>
+                  <label class="block text-xs font-semibold text-gray-600 mb-1">Username</label>
+                  <input type="text" id="regUsername" required class="w-full border rounded-lg px-3 py-2 text-sm">
+                </div>
+                <div>
+                  <label class="block text-xs font-semibold text-gray-600 mb-1">Password</label>
+                  <input type="password" id="regPassword" required class="w-full border rounded-lg px-3 py-2 text-sm">
+                </div>
+                
+                <div id="divEkskulSelect">
+                  <label class="block text-xs font-semibold text-gray-600 mb-1" id="lblEkskulSelect">Pilih Ekstrakurikuler yang Dibina (1 Pelatih = 1 Ekstra)</label>
+                  <select id="regEkskulID" class="w-full border rounded-lg px-3 py-2 text-sm bg-white">
+                    <option value="">-- Pilih Ekstrakurikuler --</option>
+                    ${publicEkskulList.map(e => `<option value="${e.ekskulID}" data-hascoach="${e.hasCoach ? '1' : '0'}">${e.namaEkskul}${e.hasCoach ? ' (Sudah Ada Pelatih)' : ''}</option>`).join('')}
+                  </select>
+                </div>
+
+                <div>
+                  <label class="block text-xs font-semibold text-gray-600 mb-1" id="lblRefID">ID Pelatih / NIP</label>
+                  <input type="text" id="regRefID" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="Masukkan ID atau NIP">
+                </div>
+
+                <button type="submit" id="btnReg" class="w-full bg-smaditaRed hover:bg-smaditaRedHover text-white py-2.5 rounded-lg text-sm font-semibold transition">
+                  Daftar Sekarang
+                </button>
+              </form>
+
+              <div class="mt-4 text-center text-xs text-gray-500">
+                Sudah punya akun? <button onclick="renderLogin()" class="text-smaditaRed font-semibold hover:underline">Kembali ke Login</button>
+              </div>
+            </div>
+          `;
+          toggleRefIDInput();
+        })
+        .getPublicEkskulList();
+    }
+
+    function toggleRefIDInput() {
+      const role = document.getElementById('regRole').value;
+      const lbl = document.getElementById('lblRefID');
+      const input = document.getElementById('regRefID');
+      const lblEkskul = document.getElementById('lblEkskulSelect');
+      const selectEkskul = document.getElementById('regEkskulID');
+
+      if (selectEkskul) {
+        Array.from(selectEkskul.options).forEach(opt => {
+          if (opt.value) {
+            const hasCoach = opt.getAttribute('data-hascoach') === '1';
+            const cleanName = opt.text.replace(' (Sudah Ada Pelatih)', '');
+            if (role === 'PELATIH' && hasCoach) {
+              opt.disabled = true;
+              opt.text = cleanName + ' (Sudah Ada Pelatih)';
+            } else {
+              opt.disabled = false;
+              opt.text = cleanName;
+            }
+          }
+        });
+        if (role === 'PELATIH' && selectEkskul.selectedOptions[0] && selectEkskul.selectedOptions[0].disabled) {
+          selectEkskul.value = '';
+        }
+      }
+
+      if (role === 'SISWA') {
+        lbl.innerText = 'NISN / ID Siswa';
+        input.placeholder = 'Masukkan NISN';
+        if (lblEkskul) lblEkskul.innerText = 'Pilih Ekstrakurikuler yang Diikuti (Opsional)';
+      } else {
+        lbl.innerText = 'ID Pelatih / NIP';
+        input.placeholder = 'Masukkan ID atau NIP';
+        if (lblEkskul) lblEkskul.innerText = 'Pilih Ekstrakurikuler yang Dibina (1 Pelatih = 1 Ekstra)';
+      }
+    }
+
+    function togglePassword(id) {
+      const input = document.getElementById(id);
+      input.type = input.type === 'password' ? 'text' : 'password';
+    }
+
+    function handleLogin(e) {
+      e.preventDefault();
+      const u = document.getElementById('loginUsername').value;
+      const p = document.getElementById('loginPassword').value;
+      const btn = document.getElementById('btnLogin');
+      btn.disabled = true;
+      btn.innerText = 'Memproses...';
+
+      google.script.run
+        .withSuccessHandler(res => {
+          btn.disabled = false;
+          btn.innerText = 'Masuk';
+          if (res.success) {
+            currentUser = res.user;
+            localStorage.setItem('smadita_user', JSON.stringify(currentUser));
+            initDashboard();
+          } else {
+            showAlert(res.message, 'error');
+          }
+        })
+        .withFailureHandler(err => {
+          btn.disabled = false;
+          btn.innerText = 'Masuk';
+          showAlert(err.message, 'error');
+        })
+        .loginUser(u, p);
+    }
+
+    function handleRegister(e) {
+      e.preventDefault();
+      const role = document.getElementById('regRole').value;
+      const ekskulID = document.getElementById('regEkskulID') ? document.getElementById('regEkskulID').value : '';
+
+      if (role === 'PELATIH' && !ekskulID) {
+        showAlert('Harap pilih 1 ekstrakurikuler yang dibina!', 'error');
+        return;
+      }
+
+      const data = {
+        fullName: document.getElementById('regFullName').value,
+        username: document.getElementById('regUsername').value,
+        password: document.getElementById('regPassword').value,
+        role: role,
+        refID: document.getElementById('regRefID').value,
+        ekskulID: ekskulID
+      };
+
+      const btn = document.getElementById('btnReg');
+      btn.disabled = true;
+      btn.innerText = 'Mendaftarkan...';
+
+      google.script.run
+        .withSuccessHandler(res => {
+          btn.disabled = false;
+          btn.innerText = 'Daftar Sekarang';
+          if (res.success) {
+            showAlert(res.message, 'success');
+            renderLogin();
+          } else {
+            showAlert(res.message, 'error');
+          }
+        })
+        .withFailureHandler(err => {
+          btn.disabled = false;
+          btn.innerText = 'Daftar Sekarang';
+          showAlert(err.message, 'error');
+        })
+        .registerUser(data);
+    }
+
+    function logout() {
+      localStorage.removeItem('smadita_user');
+      currentUser = null;
+      renderLogin();
+    }
+
+    // ==========================================
+    // DASHBOARD & MENU NAVIGATION
+    // ==========================================
+
+    function initDashboard() {
+      document.getElementById('topNavbar').classList.remove('hidden');
+      document.getElementById('sidebarNav').classList.remove('hidden');
+      document.getElementById('navUserName').innerText = currentUser.fullName;
+      document.getElementById('navUserRole').innerText = currentUser.role;
+
+      renderSidebarMenu();
+      refreshMasterSelects();
+      loadDashboardHome();
+    }
+
+    function renderSidebarMenu() {
+      const menu = document.getElementById('menuList');
+      let html = '';
+
+      const items = {
+        ADMIN: [
+          { id: 'dash', label: 'Dashboard', icon: 'fa-gauge' },
+          { id: 'ekskul_custom', label: 'Kelola Ekstrakurikuler', icon: 'fa-futbol' },
+          { id: 'presensi', label: 'Presensi', icon: 'fa-calendar-check' },
+          { id: 'jurnal', label: 'Jurnal Kegiatan', icon: 'fa-book' },
+          { id: 'nilai', label: 'Penilaian Siswa', icon: 'fa-star' },
+          { id: 'rekap', label: 'Rekap Kehadiran', icon: 'fa-chart-pie' },
+          { id: 'laporan', label: 'Laporan', icon: 'fa-file-lines' },
+          { id: 'users', label: 'Kelola Pengguna', icon: 'fa-users-gear' },
+          { id: 'settings', label: 'Pengaturan Semester', icon: 'fa-sliders' },
+          { id: 'about', label: 'About', icon: 'fa-circle-info' }
+        ],
+        PELATIH: [
+          { id: 'dash', label: 'Dashboard', icon: 'fa-gauge' },
+          { id: 'presensi', label: 'Presensi Siswa', icon: 'fa-calendar-check' },
+          { id: 'jurnal', label: 'Jurnal Kegiatan', icon: 'fa-book' },
+          { id: 'nilai', label: 'Penilaian Ekstra', icon: 'fa-star' },
+          { id: 'rekap', label: 'Rekap Kehadiran', icon: 'fa-chart-pie' },
+          { id: 'laporan', label: 'Laporan Pelatihan', icon: 'fa-file-lines' },
+          { id: 'about', label: 'About', icon: 'fa-circle-info' }
+        ],
+        SISWA: [
+          { id: 'dash', label: 'Dashboard', icon: 'fa-gauge' },
+          { id: 'presensi', label: 'Presensi Saya', icon: 'fa-calendar-check' },
+          { id: 'rekap', label: 'Rekap Presensi', icon: 'fa-chart-pie' },
+          { id: 'nilai', label: 'Nilai Saya', icon: 'fa-star' },
+          { id: 'jurnal', label: 'Jurnal Kegiatan', icon: 'fa-book' },
+          { id: 'about', label: 'About', icon: 'fa-circle-info' }
+        ]
+      };
+
+      (items[currentUser.role] || []).forEach(item => {
+        html += `
+          <button onclick="navigateMenu('${item.id}')" class="w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-gray-600 hover:bg-red-50 hover:text-smaditaRed transition">
+            <i class="fa-solid ${item.icon} w-5"></i>
+            <span class="font-medium">${item.label}</span>
+          </button>
+        `;
+      });
+
+      menu.innerHTML = html;
+    }
+
+    function navigateMenu(menuId) {
+      if (window.innerWidth < 768) {
+        document.getElementById('sidebarNav').classList.add('hidden');
+      }
+
+      switch (menuId) {
+        case 'dash': loadDashboardHome(); break;
+        case 'ekskul_custom': renderEkskulCustomModule(); break;
+        case 'presensi': renderPresensiModule(); break;
+        case 'jurnal': renderJurnalModule(); break;
+        case 'nilai': renderNilaiModule(); break;
+        case 'rekap': renderRekapModule(); break;
+        case 'laporan': renderLaporanModule(); break;
+        case 'users': renderUsersManagement(); break;
+        case 'settings': renderSettingsModule(); break;
+        case 'about': renderAboutPage(); break;
+      }
+    }
+
+    function loadDashboardHome() {
+      const container = document.getElementById('viewContainer');
+      container.innerHTML = `<div class="text-center py-8"><i class="fa-solid fa-spinner fa-spin text-2xl text-smaditaRed"></i><p class="text-xs text-gray-500 mt-2">Memuat Dashboard...</p></div>`;
+
+      google.script.run
+        .withSuccessHandler(data => {
+          appSettings = data.settings || appSettings;
+          if (currentUser.role === 'ADMIN') {
+            container.innerHTML = `
+              <div class="mb-6">
+                <h1 class="text-xl font-bold text-gray-800">Dashboard Administrator</h1>
+                <p class="text-xs text-gray-500">Tahun Ajaran: ${appSettings.tahunAjaran} | Semester: ${appSettings.semester}</p>
+              </div>
+
+              <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                <div class="bg-white p-4 rounded-xl shadow-sm border flex items-center space-x-4">
+                  <div class="p-3 bg-red-100 text-smaditaRed rounded-lg"><i class="fa-solid fa-user-graduate text-xl"></i></div>
+                  <div>
+                    <span class="text-xs text-gray-400 block">Total Siswa</span>
+                    <span class="text-xl font-bold">${data.stats.totalSiswa}</span>
+                  </div>
+                </div>
+                <div class="bg-white p-4 rounded-xl shadow-sm border flex items-center space-x-4">
+                  <div class="p-3 bg-blue-100 text-blue-600 rounded-lg"><i class="fa-solid fa-user-tie text-xl"></i></div>
+                  <div>
+                    <span class="text-xs text-gray-400 block">Total Pelatih</span>
+                    <span class="text-xl font-bold">${data.stats.totalPelatih}</span>
+                  </div>
+                </div>
+                <div class="bg-white p-4 rounded-xl shadow-sm border flex items-center space-x-4">
+                  <div class="p-3 bg-green-100 text-green-600 rounded-lg"><i class="fa-solid fa-futbol text-xl"></i></div>
+                  <div>
+                    <span class="text-xs text-gray-400 block">Ekstrakurikuler</span>
+                    <span class="text-xl font-bold">${data.stats.totalEkskul}</span>
+                  </div>
+                </div>
+                <div class="bg-white p-4 rounded-xl shadow-sm border flex items-center space-x-4">
+                  <div class="p-3 bg-yellow-100 text-yellow-600 rounded-lg"><i class="fa-solid fa-clock-rotate-left text-xl"></i></div>
+                  <div>
+                    <span class="text-xs text-gray-400 block">Pending User</span>
+                    <span class="text-xl font-bold">${data.stats.pendingUsers}</span>
+                  </div>
+                </div>
+              </div>
+            `;
+          } else if (currentUser.role === 'PELATIH') {
+            container.innerHTML = `
+              <div class="mb-6">
+                <h1 class="text-xl font-bold text-gray-800">Selamat Datang, ${currentUser.fullName}</h1>
+                <p class="text-xs text-gray-500">Dashboard Pelatih Ekstrakurikuler (1 Akun Pelatih = 1 Ekstra)</p>
+              </div>
+              <div class="bg-white p-6 rounded-xl shadow-sm border mb-6">
+                <h3 class="font-bold text-sm text-gray-700 mb-3">Ekstrakurikuler yang Dibina:</h3>
+                <div class="flex flex-wrap gap-2">
+                  ${data.assignedEkskul.map(e => `<span class="bg-red-100 text-smaditaRed text-xs font-semibold px-3 py-1 rounded-full">${e.namaEkskul}</span>`).join('') || '<span class="text-xs text-gray-400">Belum ada penugasan ekstrakurikuler.</span>'}
+                </div>
+              </div>
+            `;
+          } else {
+            container.innerHTML = `
+              <div class="mb-6">
+                <h1 class="text-xl font-bold text-gray-800">Halo, ${currentUser.fullName}</h1>
+                <p class="text-xs text-gray-500">Dashboard Siswa SMADITA</p>
+              </div>
+              <div class="bg-white p-6 rounded-xl shadow-sm border">
+                <h3 class="font-bold text-sm text-gray-700 mb-2">Ekstrakurikuler Diikuti:</h3>
+                <div class="flex flex-wrap gap-2">
+                  ${data.myEkskul.map(e => `<span class="bg-green-100 text-green-800 text-xs font-semibold px-3 py-1 rounded-full">${e.namaEkskul}</span>`).join('') || '<span class="text-xs text-gray-400">Belum terdaftar di ekstrakurikuler.</span>'}
+                </div>
+              </div>
+            `;
+          }
+        })
+        .getDashboardData(currentUser);
+    }
+
+    // ==========================================
+    // MODULE: CUSTOM KELOLA EKSTRAKURIKULER (TAMBAH, EDIT, HAPUS)
+    // ==========================================
+
+    function renderEkskulCustomModule() {
+      const container = document.getElementById('viewContainer');
+      container.innerHTML = `
+        <div class="bg-white p-6 rounded-xl shadow-sm border">
+          <div class="flex flex-wrap justify-between items-center gap-3 mb-6">
+            <div>
+              <h2 class="text-lg font-bold text-gray-800"><i class="fa-solid fa-futbol mr-2 text-smaditaRed"></i>Custom Pilihan Ekstrakurikuler</h2>
+              <p class="text-xs text-gray-500">Tambah, ubah, atau hapus daftar pilihan ekstrakurikuler (1 Pelatih hanya membina 1 Ekstra)</p>
+            </div>
+            <button onclick="openEkskulModal()" class="bg-smaditaRed hover:bg-smaditaRedHover text-white px-4 py-2 rounded-lg text-sm font-semibold shadow">
+              <i class="fa-solid fa-plus mr-1"></i> Tambah Ekstra
+            </button>
+          </div>
+
+          <div id="ekskulCustomTableContainer" class="overflow-x-auto">
+            <p class="text-center text-xs text-gray-400 py-6"><i class="fa-solid fa-spinner fa-spin"></i> Memuat daftar ekstrakurikuler...</p>
+          </div>
+        </div>
+
+        <!-- Modal Tambah / Edit Ekstra -->
+        <div id="ekskulModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div class="bg-white rounded-xl shadow-lg max-w-md w-full p-6">
+            <h3 id="ekskulModalTitle" class="text-lg font-bold text-gray-800 mb-4">Tambah Ekstrakurikuler</h3>
+            <form onsubmit="handleSaveEkskulCustom(event)" class="space-y-4">
+              <input type="hidden" id="customEkskulID">
+              <div>
+                <label class="block text-xs font-semibold text-gray-600 mb-1">Nama Ekstrakurikuler</label>
+                <input type="text" id="customNamaEkskul" required class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="Contoh: Pramuka, Futsal, Paskibra">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-gray-600 mb-1">Jadwal Latihan (Opsional)</label>
+                <input type="text" id="customJadwalEkskul" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="Contoh: Jumat, 14.30 WIB">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-gray-600 mb-1">Pelatih Pembina (Maks. 1 Ekstra per Pelatih)</label>
+                <select id="customPelatihEkskul" class="w-full border rounded-lg px-3 py-2 text-sm bg-white">
+                  <option value="">-- Belum Ditentukan --</option>
+                </select>
+              </div>
+              <div class="flex justify-end space-x-2 pt-4 border-t">
+                <button type="button" onclick="closeEkskulModal()" class="px-4 py-2 border rounded-lg text-xs font-semibold text-gray-600 hover:bg-gray-50">Batal</button>
+                <button type="submit" id="btnSaveEkskul" class="px-4 py-2 bg-smaditaRed hover:bg-smaditaRedHover text-white rounded-lg text-xs font-semibold">Simpan</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      `;
+
+      loadEkskulCustomTable();
+    }
+
+    function loadEkskulCustomTable() {
+      const container = document.getElementById('ekskulCustomTableContainer');
+      google.script.run
+        .withSuccessHandler(list => {
+          if (list.length === 0) {
+            container.innerHTML = `<p class="text-center text-xs text-gray-400 py-6">Belum ada pilihan ekstrakurikuler.</p>`;
+            return;
+          }
+
+          let html = `
+            <table class="w-full text-left text-sm border-collapse">
+              <thead>
+                <tr class="bg-gray-100 text-xs uppercase text-gray-600 border-b">
+                  <th class="p-3">Kode</th>
+                  <th class="p-3">Nama Ekstrakurikuler</th>
+                  <th class="p-3">Jadwal</th>
+                  <th class="p-3">Pelatih Pembina</th>
+                  <th class="p-3 text-center">Aksi</th>
+                </tr>
+              </thead>
+              <tbody>
+          `;
+
+          list.forEach(item => {
+            const safeNama = String(item.namaEkskul || '').replace(/'/g, "\\'");
+            const safeJadwal = String(item.jadwal || '').replace(/'/g, "\\'");
+            html += `
+              <tr class="border-b hover:bg-gray-50">
+                <td class="p-3 text-xs font-mono text-gray-500">${item.ekskulID}</td>
+                <td class="p-3 font-semibold text-gray-800">${item.namaEkskul}</td>
+                <td class="p-3 text-xs text-gray-600">${item.jadwal || '-'}</td>
+                <td class="p-3 text-xs text-gray-700">
+                  ${item.namaPelatih ? `<span class="bg-blue-50 text-blue-700 px-2.5 py-1 rounded-full font-semibold">${item.namaPelatih}</span>` : '<span class="text-gray-400 italic">Belum ada pelatih</span>'}
+                </td>
+                <td class="p-3 text-center space-x-2">
+                  <button onclick="openEkskulModal('${item.ekskulID}', '${safeNama}', '${safeJadwal}', '${item.pelatihID || ''}')" class="bg-amber-500 hover:bg-amber-600 text-white text-xs px-2.5 py-1 rounded">
+                    <i class="fa-solid fa-pen-to-square"></i> Edit
+                  </button>
+                  <button onclick="handleDeleteEkskulCustom('${item.ekskulID}', '${safeNama}')" class="bg-red-600 hover:bg-red-700 text-white text-xs px-2.5 py-1 rounded">
+                    <i class="fa-solid fa-trash"></i> Hapus
+                  </button>
+                </td>
+              </tr>
+            `;
+          });
+
+          html += `</tbody></table>`;
+          container.innerHTML = html;
+        })
+        .getAllEkskulDetail(currentUser);
+    }
+
+    function openEkskulModal(id = '', nama = '', jadwal = '', pelatihID = '') {
+      document.getElementById('ekskulModalTitle').innerText = id ? 'Edit Ekstrakurikuler' : 'Tambah Ekstrakurikuler Baru';
+      document.getElementById('customEkskulID').value = id;
+      document.getElementById('customNamaEkskul').value = nama;
+      document.getElementById('customJadwalEkskul').value = jadwal;
+
+      const selectPelatih = document.getElementById('customPelatihEkskul');
+      let optionsHtml = `<option value="">-- Belum Ditentukan --</option>`;
+      (masterSelects.pelatih || []).forEach(p => {
+        const alreadyAssignedOther = p.assignedEkskulID && String(p.assignedEkskulID) !== String(id);
+        optionsHtml += `<option value="${p.pelatihID}" ${String(p.pelatihID) === String(pelatihID) ? 'selected' : ''} ${alreadyAssignedOther ? 'disabled' : ''}>
+          ${p.nama}${alreadyAssignedOther ? ' (Sudah Membina Ekstra Lain)' : ''}
+        </option>`;
+      });
+      selectPelatih.innerHTML = optionsHtml;
+
+      document.getElementById('ekskulModal').classList.remove('hidden');
+    }
+
+    function closeEkskulModal() {
+      document.getElementById('ekskulModal').classList.add('hidden');
+    }
+
+    function handleSaveEkskulCustom(e) {
+      e.preventDefault();
+      const btn = document.getElementById('btnSaveEkskul');
+      btn.disabled = true;
+      btn.innerText = 'Menyimpan...';
+
+      const payload = {
+        ekskulID: document.getElementById('customEkskulID').value,
+        namaEkskul: document.getElementById('customNamaEkskul').value.trim(),
+        jadwal: document.getElementById('customJadwalEkskul').value.trim(),
+        pelatihID: document.getElementById('customPelatihEkskul').value
+      };
+
+      google.script.run
+        .withSuccessHandler(res => {
+          btn.disabled = false;
+          btn.innerText = 'Simpan';
+          if (res.success) {
+            showAlert(res.message, 'success');
+            closeEkskulModal();
+            refreshMasterSelects(() => loadEkskulCustomTable());
+          } else {
+            showAlert(res.message, 'error');
+          }
+        })
+        .withFailureHandler(err => {
+          btn.disabled = false;
+          btn.innerText = 'Simpan';
+          showAlert(err.message, 'error');
+        })
+        .saveEkskulCustom(currentUser, payload);
+    }
+
+    function handleDeleteEkskulCustom(ekskulID, namaEkskul) {
+      if (!confirm(`Yakin ingin menghapus ekstrakurikuler "${namaEkskul}" dari daftar pilihan?`)) return;
+      google.script.run
+        .withSuccessHandler(res => {
+          if (res.success) {
+            showAlert(res.message, 'success');
+            refreshMasterSelects(() => loadEkskulCustomTable());
+          } else {
+            showAlert(res.message, 'error');
+          }
+        })
+        .withFailureHandler(err => showAlert(err.message, 'error'))
+        .deleteEkskulCustom(currentUser, ekskulID);
+    }
+
+    // ==========================================
+    // MODULE: PRESENSI
+    // ==========================================
+
+    function renderPresensiModule() {
+      const container = document.getElementById('viewContainer');
+      const today = new Date().toISOString().split('T')[0];
+
+      container.innerHTML = `
+        <div class="bg-white p-6 rounded-xl shadow-sm border">
+          <div class="mb-6">
+            <h2 class="text-lg font-bold text-gray-800"><i class="fa-solid fa-calendar-check mr-2 text-smaditaRed"></i>Presensi Ekstrakurikuler</h2>
+            <p class="text-xs text-gray-500">Kelola dan lihat presensi siswa</p>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 bg-gray-50 p-4 rounded-lg border">
+            <div>
+              <label class="block text-xs font-semibold text-gray-600 mb-1">Pilih Ekstrakurikuler</label>
+              <select id="presEkskul" class="w-full border rounded-lg px-3 py-2 text-sm bg-white">
+                ${masterSelects.ekskul.map(e => `<option value="${e.ekskulID}">${e.namaEkskul}</option>`).join('')}
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-gray-600 mb-1">Tanggal Latihan</label>
+              <input type="date" id="presTanggal" value="${today}" class="w-full border rounded-lg px-3 py-2 text-sm bg-white">
+            </div>
+            <div class="flex items-end">
+              <button onclick="loadPresensiTable()" class="w-full bg-smaditaRed hover:bg-smaditaRedHover text-white py-2 rounded-lg text-sm font-semibold">
+                <i class="fa-solid fa-magnifying-glass mr-1"></i> Tampilkan
+              </button>
+            </div>
+          </div>
+
+          <div id="presensiTableContainer" class="overflow-x-auto">
+            <p class="text-center text-xs text-gray-400 py-6">Silakan pilih ekstrakurikuler dan tanggal, lalu klik Tampilkan.</p>
+          </div>
+        </div>
+      `;
+    }
+
+    function loadPresensiTable() {
+      const ekskulID = document.getElementById('presEkskul').value;
+      const tanggal = document.getElementById('presTanggal').value;
+      const container = document.getElementById('presensiTableContainer');
+
+      if (!ekskulID || !tanggal) {
+        showAlert('Pilih ekstrakurikuler dan tanggal terlebih dahulu!', 'error');
+        return;
+      }
+
+      container.innerHTML = `<p class="text-center text-xs text-gray-500 py-4"><i class="fa-solid fa-spinner fa-spin"></i> Memuat daftar siswa...</p>`;
+
+      google.script.run
+        .withSuccessHandler(siswaList => {
+          google.script.run
+            .withSuccessHandler(existingPresensi => {
+              if (siswaList.length === 0) {
+                container.innerHTML = `<p class="text-center text-xs text-gray-400 py-6">Belum ada siswa terdaftar pada ekstrakurikuler ini.</p>`;
+                return;
+              }
+
+              let html = `
+                <table class="w-full text-left text-sm border-collapse">
+                  <thead>
+                    <tr class="bg-gray-100 text-xs uppercase text-gray-600 border-b">
+                      <th class="p-3">No</th>
+                      <th class="p-3">Nama Siswa</th>
+                      <th class="p-3">Kelas</th>
+                      <th class="p-3 text-center">Status Presensi</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+              `;
+
+              siswaList.forEach((s, idx) => {
+                const ex = existingPresensi.find(p => String(p.siswaID) === String(s.siswaID));
+                const currentStatus = ex ? ex.statusPresensi : 'H';
+
+                html += `
+                  <tr class="border-b hover:bg-gray-50">
+                    <td class="p-3 font-medium text-xs text-gray-500">${idx + 1}</td>
+                    <td class="p-3 font-semibold text-gray-800">${s.nama}</td>
+                    <td class="p-3 text-xs text-gray-600">${s.kelas}</td>
+                    <td class="p-3 text-center">
+                      ${currentUser.role === 'SISWA' ? 
+                        `<span class="px-3 py-1 rounded-full text-xs font-bold ${
+                          currentStatus === 'H' ? 'bg-green-100 text-green-800' :
+                          currentStatus === 'S' ? 'bg-yellow-100 text-yellow-800' :
+                          currentStatus === 'I' ? 'bg-blue-100 text-blue-800' : 'bg-red-100 text-red-800'
+                        }">${currentStatus}</span>` :
+                        `<div class="inline-flex space-x-2 text-xs font-semibold">
+                          ${['H','S','I','A'].map(st => `
+                            <label class="cursor-pointer">
+                              <input type="radio" name="pres_${s.siswaID}" value="${st}" ${currentStatus === st ? 'checked' : ''} class="mr-1">
+                              ${st}
+                            </label>
+                          `).join('')}
+                        </div>`
+                      }
+                    </td>
+                  </tr>
+                `;
+              });
+
+              html += `</tbody></table>`;
+
+              if (currentUser.role !== 'SISWA') {
+                html += `
+                  <div class="mt-6 text-right">
+                    <button onclick="savePresensiData('${ekskulID}', '${tanggal}')" class="bg-green-600 hover:bg-green-700 text-white px-6 py-2.5 rounded-lg text-sm font-semibold shadow">
+                      <i class="fa-solid fa-floppy-disk mr-2"></i> Simpan Presensi
+                    </button>
+                  </div>
+                `;
+              }
+
+              container.innerHTML = html;
+            })
+            .getExistingPresensi(currentUser, ekskulID, tanggal);
+        })
+        .withFailureHandler(err => showAlert(err.message, 'error'))
+        .getSiswaForPresensi(currentUser, ekskulID);
+    }
+
+    function savePresensiData(ekskulID, tanggal) {
+      const container = document.getElementById('presensiTableContainer');
+      const inputs = container.querySelectorAll('input[type="radio"]:checked');
+      
+      let records = [];
+      inputs.forEach(inp => {
+        const siswaID = inp.name.replace('pres_', '');
+        records.push({
+          siswaID: siswaID,
+          statusPresensi: inp.value
+        });
+      });
+
+      const payload = {
+        ekskulID: ekskulID,
+        tanggal: tanggal,
+        semester: appSettings.semester,
+        tahunAjaran: appSettings.tahunAjaran,
+        records: records
+      };
+
+      google.script.run
+        .withSuccessHandler(res => {
+          if (res.success) {
+            showAlert(res.message, 'success');
+          } else {
+            showAlert(res.message, 'error');
+          }
+        })
+        .withFailureHandler(err => showAlert(err.message, 'error'))
+        .savePresensi(currentUser, payload);
+    }
+
+    // ==========================================
+    // MODULE: JURNAL KEGIATAN (MEDIA UPLOAD & LIVE CAMERA)
+    // ==========================================
+    let selectedJurnalMedia = null;
+    let liveMediaStream = null;
+    let liveMediaRecorder = null;
+    let recordedChunks = [];
+
+    function renderJurnalModule() {
+      const container = document.getElementById('viewContainer');
+      const today = new Date().toISOString().split('T')[0];
+
+      container.innerHTML = `
+        <div class="bg-white p-6 rounded-xl shadow-sm border">
+          <div class="flex justify-between items-center mb-6">
+            <div>
+              <h2 class="text-lg font-bold text-gray-800"><i class="fa-solid fa-book mr-2 text-smaditaRed"></i>Jurnal Kegiatan Ekstrakurikuler</h2>
+              <p class="text-xs text-gray-500">Catatan materi dan evaluasi latihan</p>
+            </div>
+            ${currentUser.role !== 'SISWA' ? `
+              <button onclick="openJurnalModal()" class="bg-smaditaRed hover:bg-smaditaRedHover text-white px-4 py-2 rounded-lg text-sm font-semibold">
+                <i class="fa-solid fa-plus mr-1"></i> Tambah Jurnal
+              </button>
+            ` : ''}
+          </div>
+
+          <div id="jurnalListContainer" class="space-y-4">
+            <p class="text-center text-xs text-gray-400 py-6"><i class="fa-solid fa-spinner fa-spin"></i> Memuat jurnal...</p>
+          </div>
+        </div>
+
+        <!-- Jurnal Modal -->
+        <div id="jurnalModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div class="bg-white rounded-xl shadow-lg max-w-lg w-full p-6 relative max-h-[90vh] overflow-y-auto">
+            <h3 class="text-lg font-bold text-gray-800 mb-4">Form Jurnal Kegiatan</h3>
+            <form onsubmit="handleSaveJurnal(event)" class="space-y-4">
+              <input type="hidden" id="jurnalID">
+              <div>
+                <label class="block text-xs font-semibold text-gray-600 mb-1">Ekstrakurikuler</label>
+                <select id="jurnalEkskul" required class="w-full border rounded-lg px-3 py-2 text-sm bg-white">
+                  ${masterSelects.ekskul.map(e => `<option value="${e.ekskulID}">${e.namaEkskul}</option>`).join('')}
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-gray-600 mb-1">Tanggal</label>
+                <input type="date" id="jurnalTanggal" value="${today}" required class="w-full border rounded-lg px-3 py-2 text-sm bg-white">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-gray-600 mb-1">Materi Latihan</label>
+                <input type="text" id="jurnalMateri" required class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="Contoh: Peraturan Baris Berbaris">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-gray-600 mb-1">Catatan Kegiatan</label>
+                <textarea id="jurnalCatatan" rows="2" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="Jalannya kegiatan latihan"></textarea>
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-gray-600 mb-1">Evaluasi</label>
+                <textarea id="jurnalEvaluasi" rows="2" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="Catatan evaluasi dan perbaikan"></textarea>
+              </div>
+
+              <!-- Input Foto / Video Dokumentasi (Galeri/File Perangkat & Kamera Live) -->
+              <div>
+                <label class="block text-xs font-semibold text-gray-600 mb-1.5">Foto / Video Dokumentasi (Opsional)</label>
+                <div class="grid grid-cols-2 gap-2">
+                  <label class="cursor-pointer flex items-center justify-center gap-2 border border-gray-300 bg-gray-50 hover:bg-gray-100 text-gray-700 py-2.5 px-3 rounded-lg text-xs font-semibold transition text-center">
+                    <i class="fa-solid fa-photo-film text-smaditaRed"></i>
+                    <span>Galeri / File Perangkat</span>
+                    <input type="file" id="jurnalFileInput" accept="image/*,video/*" onchange="handleGalleryFileSelect(event)" class="hidden">
+                  </label>
+                  <button type="button" onclick="openLiveCameraBox()" class="flex items-center justify-center gap-2 border border-smaditaRed bg-red-50 hover:bg-red-100 text-smaditaRed py-2.5 px-3 rounded-lg text-xs font-semibold transition">
+                    <i class="fa-solid fa-camera"></i>
+                    <span>Kamera Live</span>
+                  </button>
+                </div>
+
+                <!-- Box Kamera Live (Foto & Rekam Video Langsung) -->
+                <div id="liveCameraBox" class="hidden mt-3 p-3 bg-gray-900 rounded-xl text-white space-y-2.5">
+                  <div class="flex justify-between items-center text-[11px] text-gray-300 px-1">
+                    <span id="cameraStatusText"><i class="fa-solid fa-circle text-green-400 mr-1"></i>Kamera Aktif</span>
+                    <button type="button" onclick="switchCameraFacing()" class="bg-gray-800 hover:bg-gray-700 text-white px-2.5 py-1 rounded text-[11px] font-semibold">
+                      <i class="fa-solid fa-rotate mr-1"></i>Ganti Kamera
+                    </button>
+                  </div>
+                  <div class="relative rounded-lg overflow-hidden bg-black flex items-center justify-center">
+                    <video id="liveVideoPreview" autoplay playsinline muted class="w-full max-h-60 object-cover"></video>
+                    <span id="recBadge" class="hidden absolute top-2 left-2 bg-red-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full animate-pulse">
+                      ● MEREKAM VIDEO
+                    </span>
+                  </div>
+                  <div class="flex flex-wrap items-center justify-center gap-2">
+                    <button type="button" onclick="captureLivePhoto()" class="bg-white text-gray-900 hover:bg-gray-200 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5">
+                      <i class="fa-solid fa-camera text-smaditaRed"></i> Ambil Foto
+                    </button>
+                    <button type="button" id="btnStartRec" onclick="startLiveVideoRecord()" class="bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5">
+                      <i class="fa-solid fa-video"></i> Rekam Video
+                    </button>
+                    <button type="button" id="btnStopRec" onclick="stopLiveVideoRecord()" class="hidden bg-amber-500 hover:bg-amber-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5">
+                      <i class="fa-solid fa-stop"></i> Stop Rekam
+                    </button>
+                    <button type="button" onclick="closeLiveCameraBox()" class="bg-gray-700 hover:bg-gray-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold">
+                      Tutup
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Pratinjau Media Terpilih -->
+                <div id="mediaPreviewContainer" class="hidden mt-3 p-2.5 border rounded-lg bg-gray-50 relative">
+                  <div class="flex justify-between items-center mb-1.5">
+                    <span id="mediaPreviewName" class="text-[11px] font-semibold text-gray-700 truncate pr-4"></span>
+                    <button type="button" onclick="clearSelectedMedia()" class="text-red-600 hover:text-red-800 text-xs font-bold">
+                      <i class="fa-solid fa-xmark"></i> Hapus
+                    </button>
+                  </div>
+                  <div id="mediaPreviewElement" class="flex justify-center bg-black/5 rounded overflow-hidden"></div>
+                </div>
+              </div>
+
+              <div class="flex justify-end items-center space-x-3 pt-4 border-t mt-4">
+                <button type="button" onclick="closeJurnalModal()" class="px-4 py-2 border border-gray-300 rounded-lg text-xs font-semibold text-gray-700 hover:bg-gray-50">Batal</button>
+                <button type="submit" id="btnSaveJurnal" class="px-5 py-2 bg-smaditaRed hover:bg-smaditaRedHover text-white rounded-lg text-xs font-semibold shadow">Simpan Jurnal</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      `;
+
+      loadJurnalList();
+    }
+
+    let currentCameraFacing = 'environment';
+
+    function handleGalleryFileSelect(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      if (file.size > 25 * 1024 * 1024) {
+        showAlert('Ukuran file terlalu besar (Maksimal 25 MB).', 'error');
+        e.target.value = '';
+        return;
+      }
+
+      closeLiveCameraBox();
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        const dataUrl = evt.target.result;
+        const base64Data = dataUrl.split(',')[1];
+        selectedJurnalMedia = {
+          base64Data: base64Data,
+          fileName: file.name,
+          mimeType: file.type,
+          dataUrl: dataUrl
+        };
+        renderSelectedMediaPreview();
+      };
+      reader.readAsDataURL(file);
+    }
+
+    async function startCameraStream(facingMode) {
+      const camBox = document.getElementById('liveCameraBox');
+      const videoEl = document.getElementById('liveVideoPreview');
+      const statusEl = document.getElementById('cameraStatusText');
+
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        showAlert('Browser tidak mendukung akses kamera langsung.', 'error');
+        return;
+      }
+
+      stopLiveCameraStream();
+      try {
+        liveMediaStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: facingMode },
+          audio: true
+        });
+      } catch (err) {
+        try {
+          liveMediaStream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: facingMode },
+            audio: false
+          });
+        } catch (err2) {
+          try {
+            liveMediaStream = await navigator.mediaDevices.getUserMedia({
+              video: true,
+              audio: false
+            });
+          } catch (err3) {
+            showAlert('Izin kamera ditolak atau kamera tidak tersedia. Pastikan izin kamera diaktifkan pada browser/perangkat.', 'error');
+            return;
+          }
+        }
+      }
+
+      videoEl.srcObject = liveMediaStream;
+      if (statusEl) {
+        statusEl.innerHTML = `<i class="fa-solid fa-circle text-green-400 mr-1"></i>Kamera Aktif (${facingMode === 'environment' ? 'Belakang' : 'Depan'})`;
+      }
+      camBox.classList.remove('hidden');
+    }
+
+    async function openLiveCameraBox() {
+      await startCameraStream(currentCameraFacing);
+    }
+
+    async function switchCameraFacing() {
+      currentCameraFacing = currentCameraFacing === 'environment' ? 'user' : 'environment';
+      await startCameraStream(currentCameraFacing);
+    }
+
+    function stopLiveCameraStream() {
+      if (liveMediaRecorder && liveMediaRecorder.state !== 'inactive') {
+        try { liveMediaRecorder.stop(); } catch (_) {}
+      }
+      if (liveMediaStream) {
+        liveMediaStream.getTracks().forEach(track => track.stop());
+        liveMediaStream = null;
+      }
+    }
+
+    function closeLiveCameraBox() {
+      stopLiveCameraStream();
+      const camBox = document.getElementById('liveCameraBox');
+      if (camBox) camBox.classList.add('hidden');
+      const recBadge = document.getElementById('recBadge');
+      if (recBadge) recBadge.classList.add('hidden');
+      const btnStart = document.getElementById('btnStartRec');
+      const btnStop = document.getElementById('btnStopRec');
+      if (btnStart) btnStart.classList.remove('hidden');
+      if (btnStop) btnStop.classList.add('hidden');
+    }
+
+    function captureLivePhoto() {
+      const videoEl = document.getElementById('liveVideoPreview');
+      if (!videoEl || !liveMediaStream) return;
+
+      const canvas = document.createElement('canvas');
+      canvas.width = videoEl.videoWidth || 640;
+      canvas.height = videoEl.videoHeight || 480;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
+
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+      const base64Data = dataUrl.split(',')[1];
+      selectedJurnalMedia = {
+        base64Data: base64Data,
+        fileName: 'Foto_Live_' + Date.now() + '.jpg',
+        mimeType: 'image/jpeg',
+        dataUrl: dataUrl
+      };
+
+      closeLiveCameraBox();
+      renderSelectedMediaPreview();
+    }
+
+    function startLiveVideoRecord() {
+      if (!liveMediaStream) return;
+      recordedChunks = [];
+      try {
+        liveMediaRecorder = new MediaRecorder(liveMediaStream);
+      } catch (e) {
+        showAlert('Perangkat tidak mendukung perekaman video langsung.', 'error');
+        return;
+      }
+
+      liveMediaRecorder.ondataavailable = function(event) {
+        if (event.data && event.data.size > 0) {
+          recordedChunks.push(event.data);
+        }
+      };
+
+      liveMediaRecorder.onstop = function() {
+        const blob = new Blob(recordedChunks, { type: 'video/webm' });
+        const reader = new FileReader();
+        reader.onload = function(evt) {
+          const dataUrl = evt.target.result;
+          const base64Data = dataUrl.split(',')[1];
+          selectedJurnalMedia = {
+            base64Data: base64Data,
+            fileName: 'Video_Live_' + Date.now() + '.webm',
+            mimeType: 'video/webm',
+            dataUrl: dataUrl
+          };
+          closeLiveCameraBox();
+          renderSelectedMediaPreview();
+        };
+        reader.readAsDataURL(blob);
+      };
+
+      liveMediaRecorder.start();
+      document.getElementById('recBadge').classList.remove('hidden');
+      document.getElementById('btnStartRec').classList.add('hidden');
+      document.getElementById('btnStopRec').classList.remove('hidden');
+    }
+
+    function stopLiveVideoRecord() {
+      if (liveMediaRecorder && liveMediaRecorder.state !== 'inactive') {
+        liveMediaRecorder.stop();
+      }
+    }
+
+    function renderSelectedMediaPreview() {
+      const container = document.getElementById('mediaPreviewContainer');
+      const nameEl = document.getElementById('mediaPreviewName');
+      const elBox = document.getElementById('mediaPreviewElement');
+
+      if (!selectedJurnalMedia) {
+        container.classList.add('hidden');
+        return;
+      }
+
+      nameEl.innerText = selectedJurnalMedia.fileName;
+      if (selectedJurnalMedia.mimeType.startsWith('video/')) {
+        elBox.innerHTML = `<video src="${selectedJurnalMedia.dataUrl}" controls class="max-h-48 w-auto rounded"></video>`;
+      } else {
+        elBox.innerHTML = `<img src="${selectedJurnalMedia.dataUrl}" alt="Pratinjau" class="max-h-48 w-auto object-contain rounded">`;
+      }
+      container.classList.remove('hidden');
+    }
+
+    function clearSelectedMedia() {
+      selectedJurnalMedia = null;
+      const fileInp = document.getElementById('jurnalFileInput');
+      if (fileInp) fileInp.value = '';
+      const container = document.getElementById('mediaPreviewContainer');
+      if (container) container.classList.add('hidden');
+    }
+
+    function loadJurnalList() {
+      const container = document.getElementById('jurnalListContainer');
+      google.script.run
+        .withSuccessHandler(data => {
+          if (data.length === 0) {
+            container.innerHTML = `<p class="text-center text-xs text-gray-400 py-6">Belum ada jurnal latihan tersimpan.</p>`;
+            return;
+          }
+
+          let html = '';
+          data.forEach(j => {
+            html += `
+              <div class="border rounded-xl p-4 hover:shadow-sm transition bg-white">
+                <div class="flex justify-between items-start mb-2">
+                  <div>
+                    <span class="bg-red-100 text-smaditaRed text-xs font-bold px-2.5 py-0.5 rounded-full">${j.namaEkskul}</span>
+                    <h4 class="font-bold text-gray-800 text-base mt-2">${j.materi}</h4>
+                  </div>
+                  <span class="text-xs text-gray-400">${j.tanggal}</span>
+                </div>
+                <p class="text-xs text-gray-600 mb-2"><strong>Pelatih:</strong> ${j.namaPelatih}</p>
+                <p class="text-xs text-gray-600 mb-1"><strong>Catatan:</strong> ${j.catatan || '-'}</p>
+                <p class="text-xs text-gray-600 mb-2"><strong>Evaluasi:</strong> ${j.evaluasi || '-'}</p>
+                ${j.dokumentasi && j.dokumentasi !== '-' ? `<p class="text-xs text-blue-600 mb-3"><i class="fa-solid fa-photo-film mr-1"></i><a href="${j.dokumentasi}" target="_blank" class="underline">Buka Foto / Video Dokumentasi</a></p>` : ''}
+                
+                ${currentUser.role !== 'SISWA' ? `
+                  <div class="flex justify-end space-x-3 text-xs border-t pt-2 mt-2">
+                    <button onclick="handleDeleteJurnal('${j.jurnalID}')" class="text-red-600 hover:underline"><i class="fa-solid fa-trash mr-1"></i>Hapus</button>
+                  </div>
+                ` : ''}
+              </div>
+            `;
+          });
+
+          container.innerHTML = html;
+        })
+        .getJurnalList(currentUser, null);
+    }
+
+    function openJurnalModal() {
+      document.getElementById('jurnalID').value = '';
+      document.getElementById('jurnalMateri').value = '';
+      document.getElementById('jurnalCatatan').value = '';
+      document.getElementById('jurnalEvaluasi').value = '';
+      clearSelectedMedia();
+      closeLiveCameraBox();
+      document.getElementById('jurnalModal').classList.remove('hidden');
+    }
+    function closeJurnalModal() {
+      closeLiveCameraBox();
+      document.getElementById('jurnalModal').classList.add('hidden');
+    }
+
+    function handleSaveJurnal(e) {
+      e.preventDefault();
+      const btn = document.getElementById('btnSaveJurnal');
+      btn.disabled = true;
+
+      const submitJurnalPayload = (dokumentasiUrl) => {
+        btn.innerText = 'Menyimpan...';
+        const payload = {
+          jurnalID: document.getElementById('jurnalID').value,
+          ekskulID: document.getElementById('jurnalEkskul').value,
+          tanggal: document.getElementById('jurnalTanggal').value,
+          materi: document.getElementById('jurnalMateri').value,
+          catatan: document.getElementById('jurnalCatatan').value,
+          evaluasi: document.getElementById('jurnalEvaluasi').value,
+          dokumentasi: dokumentasiUrl || '-',
+          semester: appSettings.semester,
+          tahunAjaran: appSettings.tahunAjaran
+        };
+
+        google.script.run
+          .withSuccessHandler(res => {
+            btn.disabled = false;
+            btn.innerText = 'Simpan Jurnal';
+            if (res.success) {
+              showAlert(res.message, 'success');
+              clearSelectedMedia();
+              closeJurnalModal();
+              loadJurnalList();
+            } else {
+              showAlert(res.message, 'error');
+            }
+          })
+          .withFailureHandler(err => {
+            btn.disabled = false;
+            btn.innerText = 'Simpan Jurnal';
+            showAlert(err.message, 'error');
+          })
+          .saveJurnal(currentUser, payload);
+      };
+
+      if (selectedJurnalMedia) {
+        btn.innerText = 'Mengunggah Foto / Video...';
+        google.script.run
+          .withSuccessHandler(uploadRes => {
+            if (uploadRes.success) {
+              submitJurnalPayload(uploadRes.url);
+            } else {
+              btn.disabled = false;
+              btn.innerText = 'Simpan Jurnal';
+              showAlert(uploadRes.message, 'error');
+            }
+          })
+          .withFailureHandler(err => {
+            btn.disabled = false;
+            btn.innerText = 'Simpan Jurnal';
+            showAlert('Gagal mengunggah dokumentasi: ' + err.message, 'error');
+          })
+          .uploadDokumentasiDrive(selectedJurnalMedia.base64Data, selectedJurnalMedia.fileName, selectedJurnalMedia.mimeType);
+      } else {
+        submitJurnalPayload('-');
+      }
+    }
+
+    function handleDeleteJurnal(id) {
+      if (!confirm('Yakin ingin menghapus jurnal ini?')) return;
+      google.script.run
+        .withSuccessHandler(res => {
+          if (res.success) {
+            showAlert(res.message, 'success');
+            loadJurnalList();
+          } else {
+            showAlert(res.message, 'error');
+          }
+        })
+        .withFailureHandler(err => showAlert(err.message, 'error'))
+        .deleteJurnal(currentUser, id);
+    }
+
+    // ==========================================
+    // MODULE: PENILAIAN SISWA
+    // ==========================================
+
+    function renderNilaiModule() {
+      const container = document.getElementById('viewContainer');
+      container.innerHTML = `
+        <div class="bg-white p-6 rounded-xl shadow-sm border">
+          <div class="flex justify-between items-center mb-6">
+            <div>
+              <h2 class="text-lg font-bold text-gray-800"><i class="fa-solid fa-star mr-2 text-smaditaRed"></i>Penilaian Ekstrakurikuler</h2>
+              <p class="text-xs text-gray-500">Nilai akhir siswa per semester</p>
+            </div>
+            ${currentUser.role !== 'SISWA' ? `
+              <button onclick="openNilaiModal()" class="bg-smaditaRed hover:bg-smaditaRedHover text-white px-4 py-2 rounded-lg text-sm font-semibold">
+                <i class="fa-solid fa-plus mr-1"></i> Input Nilai
+              </button>
+            ` : ''}
+          </div>
+
+          <div id="nilaiTableContainer" class="overflow-x-auto">
+            <p class="text-center text-xs text-gray-400 py-6"><i class="fa-solid fa-spinner fa-spin"></i> Memuat data nilai...</p>
+          </div>
+        </div>
+
+        <!-- Modal Input Nilai -->
+        <div id="nilaiModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div class="bg-white rounded-xl shadow-lg max-w-md w-full p-6">
+            <h3 class="text-lg font-bold text-gray-800 mb-4">Input Nilai Siswa</h3>
+            <form onsubmit="handleSaveNilai(event)" class="space-y-4">
+              <div>
+                <label class="block text-xs font-semibold text-gray-600 mb-1">Ekstrakurikuler</label>
+                <select id="nilaiEkskul" required class="w-full border rounded-lg px-3 py-2 text-sm">
+                  ${masterSelects.ekskul.map(e => `<option value="${e.ekskulID}">${e.namaEkskul}</option>`).join('')}
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-gray-600 mb-1">Pilih Siswa</label>
+                <select id="nilaiSiswa" required class="w-full border rounded-lg px-3 py-2 text-sm">
+                  ${masterSelects.siswa.map(s => `<option value="${s.siswaID}">${s.nama} (${s.kelas})</option>`).join('')}
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-gray-600 mb-1">Nilai Angka (0-100)</label>
+                <input type="number" id="nilaiAngka" min="0" max="100" required class="w-full border rounded-lg px-3 py-2 text-sm">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-gray-600 mb-1">Catatan Perkembangan</label>
+                <textarea id="nilaiCatatan" rows="2" class="w-full border rounded-lg px-3 py-2 text-sm"></textarea>
+              </div>
+              <div class="flex justify-end space-x-2 pt-4">
+                <button type="button" onclick="closeNilaiModal()" class="px-4 py-2 border rounded-lg text-xs font-semibold text-gray-600">Batal</button>
+                <button type="submit" class="px-4 py-2 bg-smaditaRed text-white rounded-lg text-xs font-semibold">Simpan Nilai</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      `;
+
+      loadNilaiTable();
+    }
+
+    function loadNilaiTable() {
+      const container = document.getElementById('nilaiTableContainer');
+      google.script.run
+        .withSuccessHandler(data => {
+          if (data.length === 0) {
+            container.innerHTML = `<p class="text-center text-xs text-gray-400 py-6">Belum ada nilai yang diinputkan.</p>`;
+            return;
+          }
+
+          let html = `
+            <table class="w-full text-left text-sm border-collapse">
+              <thead>
+                <tr class="bg-gray-100 text-xs uppercase text-gray-600 border-b">
+                  <th class="p-3">Nama Siswa</th>
+                  <th class="p-3">Kelas</th>
+                  <th class="p-3">Ekstrakurikuler</th>
+                  <th class="p-3 text-center">Nilai</th>
+                  <th class="p-3 text-center">Predikat</th>
+                  <th class="p-3">Catatan</th>
+                </tr>
+              </thead>
+              <tbody>
+          `;
+
+          data.forEach(n => {
+            html += `
+              <tr class="border-b hover:bg-gray-50">
+                <td class="p-3 font-semibold text-gray-800">${n.namaSiswa}</td>
+                <td class="p-3 text-xs text-gray-600">${n.kelas}</td>
+                <td class="p-3 text-xs text-gray-600">${n.namaEkskul}</td>
+                <td class="p-3 text-center font-bold text-gray-800">${n.angka}</td>
+                <td class="p-3 text-center">
+                  <span class="px-2.5 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-800">${n.predikat}</span>
+                </td>
+                <td class="p-3 text-xs text-gray-500">${n.catatan}</td>
+              </tr>
+            `;
+          });
+
+          html += `</tbody></table>`;
+          container.innerHTML = html;
+        })
+        .getNilaiData(currentUser, null, appSettings.semester, appSettings.tahunAjaran);
+    }
+
+    function openNilaiModal() { document.getElementById('nilaiModal').classList.remove('hidden'); }
+    function closeNilaiModal() { document.getElementById('nilaiModal').classList.add('hidden'); }
+
+    function handleSaveNilai(e) {
+      e.preventDefault();
+      const payload = {
+        ekskulID: document.getElementById('nilaiEkskul').value,
+        siswaID: document.getElementById('nilaiSiswa').value,
+        angka: document.getElementById('nilaiAngka').value,
+        catatan: document.getElementById('nilaiCatatan').value,
+        semester: appSettings.semester,
+        tahunAjaran: appSettings.tahunAjaran
+      };
+
+      google.script.run
+        .withSuccessHandler(res => {
+          if (res.success) {
+            showAlert(res.message, 'success');
+            closeNilaiModal();
+            loadNilaiTable();
+          } else {
+            showAlert(res.message, 'error');
+          }
+        })
+        .withFailureHandler(err => showAlert(err.message, 'error'))
+        .saveNilai(currentUser, payload);
+    }
+
+    // ==========================================
+    // MODULE: REKAP KEHADIRAN
+    // ==========================================
+
+    function renderRekapModule() {
+      const container = document.getElementById('viewContainer');
+      container.innerHTML = `
+        <div class="bg-white p-6 rounded-xl shadow-sm border">
+          <div class="mb-6">
+            <h2 class="text-lg font-bold text-gray-800"><i class="fa-solid fa-chart-pie mr-2 text-smaditaRed"></i>Rekap Kehadiran Presensi</h2>
+            <p class="text-xs text-gray-500">Persentase kehadiran siswa selama semester berjalan</p>
+          </div>
+
+          <div id="rekapContainer" class="overflow-x-auto">
+            <p class="text-center text-xs text-gray-400 py-6"><i class="fa-solid fa-spinner fa-spin"></i> Memuat rekapitulasi...</p>
+          </div>
+        </div>
+      `;
+
+      google.script.run
+        .withSuccessHandler(data => {
+          const recEl = document.getElementById('rekapContainer');
+          if (data.length === 0) {
+            recEl.innerHTML = `<p class="text-center text-xs text-gray-400 py-6">Belum ada data presensi terhitung.</p>`;
+            return;
+          }
+
+          let html = `
+            <table class="w-full text-left text-sm border-collapse">
+              <thead>
+                <tr class="bg-gray-100 text-xs uppercase text-gray-600 border-b">
+                  <th class="p-3">Nama Siswa</th>
+                  <th class="p-3">Kelas</th>
+                  <th class="p-3 text-center text-green-700">Hadir</th>
+                  <th class="p-3 text-center text-yellow-700">Sakit</th>
+                  <th class="p-3 text-center text-blue-700">Izin</th>
+                  <th class="p-3 text-center text-red-700">Alpa</th>
+                  <th class="p-3 text-center">Total Latihan</th>
+                  <th class="p-3 text-center">Kehadiran (%)</th>
+                </tr>
+              </thead>
+              <tbody>
+          `;
+
+          data.forEach(r => {
+            html += `
+              <tr class="border-b hover:bg-gray-50">
+                <td class="p-3 font-semibold text-gray-800">${r.nama}</td>
+                <td class="p-3 text-xs text-gray-600">${r.kelas}</td>
+                <td class="p-3 text-center font-bold text-green-600">${r.hadir}</td>
+                <td class="p-3 text-center font-bold text-yellow-600">${r.sakit}</td>
+                <td class="p-3 text-center font-bold text-blue-600">${r.izin}</td>
+                <td class="p-3 text-center font-bold text-red-600">${r.alpa}</td>
+                <td class="p-3 text-center font-bold text-gray-700">${r.total}</td>
+                <td class="p-3 text-center">
+                  <span class="px-2.5 py-1 rounded-full text-xs font-bold ${r.persentase >= 75 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
+                    ${r.persentase}%
+                  </span>
+                </td>
+              </tr>
+            `;
+          });
+
+          html += `</tbody></table>`;
+          recEl.innerHTML = html;
+        })
+        .getRekapKehadiran(currentUser, null, appSettings.semester, appSettings.tahunAjaran);
+    }
+
+    // ==========================================
+    // MODULE: LAPORAN & CETAK (PRINT DATA ONLY)
+    // ==========================================
+
+    function renderLaporanModule() {
+      const container = document.getElementById('viewContainer');
+      container.innerHTML = `
+        <div class="main-card-wrapper bg-white p-6 rounded-xl shadow-sm border">
+          <div class="mb-6 no-print">
+            <h2 class="text-lg font-bold text-gray-800"><i class="fa-solid fa-file-lines mr-2 text-smaditaRed"></i>Cetak Laporan</h2>
+            <p class="text-xs text-gray-500">Pilih jenis laporan di bawah ini untuk menampilkan data yang siap dicetak</p>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 no-print">
+            <div class="border rounded-xl p-5 text-center hover:border-smaditaRed transition bg-gray-50">
+              <i class="fa-solid fa-book-open text-3xl text-smaditaRed mb-3"></i>
+              <h3 class="font-bold text-gray-800 text-sm mb-1">Laporan Pelatihan</h3>
+              <p class="text-xs text-gray-500 mb-4">Ringkasan jurnal latihan, materi, dan catatan pelatih</p>
+              <button onclick="generateReport('PELATIHAN')" class="w-full bg-smaditaRed hover:bg-smaditaRedHover text-white py-2 rounded-lg text-xs font-semibold">Tampilkan Data Laporan</button>
+            </div>
+
+            <div class="border rounded-xl p-5 text-center hover:border-smaditaRed transition bg-gray-50">
+              <i class="fa-solid fa-clipboard-user text-3xl text-smaditaRed mb-3"></i>
+              <h3 class="font-bold text-gray-800 text-sm mb-1">Laporan Kehadiran</h3>
+              <p class="text-xs text-gray-500 mb-4">Rekapitulasi total presensi dan persentase siswa</p>
+              <button onclick="generateReport('KEHADIRAN')" class="w-full bg-smaditaRed hover:bg-smaditaRedHover text-white py-2 rounded-lg text-xs font-semibold">Tampilkan Data Laporan</button>
+            </div>
+
+            <div class="border rounded-xl p-5 text-center hover:border-smaditaRed transition bg-gray-50">
+              <i class="fa-solid fa-award text-3xl text-smaditaRed mb-3"></i>
+              <h3 class="font-bold text-gray-800 text-sm mb-1">Cetak Nilai Siswa</h3>
+              <p class="text-xs text-gray-500 mb-4">Lembar hasil penilaian ekstrakurikuler siswa</p>
+              <button onclick="generateReport('NILAI')" class="w-full bg-smaditaRed hover:bg-smaditaRedHover text-white py-2 rounded-lg text-xs font-semibold">Tampilkan Data Laporan</button>
+            </div>
+          </div>
+
+          <!-- Area Pratinjau & Cetak Dokumen Laporan -->
+          <div id="reportPreviewWrapper" class="hidden border-t pt-6">
+            <div class="flex flex-wrap justify-between items-center gap-3 mb-4 no-print bg-gray-50 p-3 rounded-lg border">
+              <div class="flex items-center space-x-2">
+                <label class="text-xs font-semibold text-gray-600">Filter Ekskul:</label>
+                <select id="repFilterEkskul" onchange="refreshCurrentReport()" class="border rounded-lg px-2.5 py-1.5 text-xs bg-white">
+                  <option value="">Semua Ekstrakurikuler</option>
+                  ${masterSelects.ekskul.map(e => `<option value="${e.ekskulID}">${e.namaEkskul}</option>`).join('')}
+                </select>
+              </div>
+              <div class="flex space-x-2">
+                <button onclick="exportReportCSV()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-xs font-semibold shadow">
+                  <i class="fa-solid fa-file-csv mr-1"></i> Ekspor CSV
+                </button>
+                <button onclick="printReportOnly()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-xs font-semibold shadow">
+                  <i class="fa-solid fa-print mr-1"></i> Cetak Dokumen Data
+                </button>
+              </div>
+            </div>
+
+            <div id="printArea" class="bg-white p-4 sm:p-6 border rounded-lg">
+              <!-- Konten Laporan dirender di sini -->
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function printReportOnly() {
+      const printContent = document.getElementById('printArea').innerHTML;
+      const printWindow = window.open('', '_blank', 'width=900,height=650');
+      if (printWindow) {
+        printWindow.document.open();
+        printWindow.document.write(`
+          <!DOCTYPE html>
+          <html lang="id">
+          <head>
+            <meta charset="UTF-8">
+            <title>Cetak Laporan SMADITA</title>
+            <script src="https://cdn.tailwindcss.com"><\/script>
+            <style>
+              body { font-family: sans-serif; padding: 20px; background: white; color: #111827; }
+              table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+              th, td { border: 1px solid #374151; padding: 6px 8px; font-size: 12px; }
+              th { background-color: #f3f4f6; font-weight: bold; }
+              @media print {
+                @page { margin: 12mm; }
+                body { padding: 0; }
+              }
+            </style>
+          </head>
+          <body onload="setTimeout(function(){ window.print(); window.close(); }, 500);">
+            ${printContent}
+          </body>
+          </html>
+        `);
+        printWindow.document.close();
+      } else {
+        // Fallback jika pop-up diblokir browser (menggunakan @media print CSS)
+        window.print();
+      }
+    }
+
+    function refreshCurrentReport() {
+      if (currentReportType) generateReport(currentReportType);
+    }
+
+    function generateReport(type) {
+      currentReportType = type;
+      const wrapper = document.getElementById('reportPreviewWrapper');
+      const printArea = document.getElementById('printArea');
+      const filterEkskul = document.getElementById('repFilterEkskul') ? document.getElementById('repFilterEkskul').value : '';
+
+      wrapper.classList.remove('hidden');
+      printArea.innerHTML = `<p class="text-center text-xs text-gray-500 py-8"><i class="fa-solid fa-spinner fa-spin mr-2"></i>Mengambil data laporan dari database...</p>`;
+
+      const kopSurat = `
+        <div class="border-b-2 border-gray-800 pb-4 mb-6 flex items-center justify-between">
+          <div class="flex items-center space-x-3">
+            <img src="https://i.ibb.co.com/3ysFVhxP/IMG-5d0357f5-f1cf-4422-b59c-402168b0b72f.png" alt="Logo" class="h-14 w-auto">
+            <div>
+              <h3 class="font-bold text-base sm:text-lg text-gray-900 uppercase">SMAS Diponegoro Tumpang (SMADITA)</h3>
+              <p class="text-xs text-gray-600">Laporan Resmi Ekstrakurikuler | Semester ${appSettings.semester} Tahun Ajaran ${appSettings.tahunAjaran}</p>
+            </div>
+          </div>
+        </div>
+      `;
+
+      if (type === 'PELATIHAN') {
+        google.script.run
+          .withSuccessHandler(data => {
+            currentReportData = data;
+            let rows = data.length === 0 
+              ? `<tr><td colspan="6" class="p-4 text-center text-xs text-gray-400">Tidak ada data jurnal latihan ditemukan.</td></tr>`
+              : data.map((j, i) => `
+                  <tr class="border-b">
+                    <td class="p-2 text-xs text-center">${i + 1}</td>
+                    <td class="p-2 text-xs">${j.tanggal}</td>
+                    <td class="p-2 text-xs font-semibold">${j.namaEkskul}</td>
+                    <td class="p-2 text-xs">${j.namaPelatih}</td>
+                    <td class="p-2 text-xs">${j.materi}</td>
+                    <td class="p-2 text-xs">${j.catatan || '-'} / Eval: ${j.evaluasi || '-'}</td>
+                  </tr>
+                `).join('');
+
+            printArea.innerHTML = `
+              ${kopSurat}
+              <h4 class="font-bold text-center text-sm uppercase mb-4">LAPORAN KEGIATAN & JURNAL PELATIHAN EKSTRAKURIKULER</h4>
+              <table class="w-full text-left border-collapse border text-xs">
+                <thead>
+                  <tr class="bg-gray-100 border-b">
+                    <th class="p-2 border text-center">No</th>
+                    <th class="p-2 border">Tanggal</th>
+                    <th class="p-2 border">Ekstrakurikuler</th>
+                    <th class="p-2 border">Pelatih</th>
+                    <th class="p-2 border">Materi Latihan</th>
+                    <th class="p-2 border">Catatan & Evaluasi</th>
+                  </tr>
+                </thead>
+                <tbody>${rows}</tbody>
+              </table>
+            `;
+          })
+          .getJurnalList(currentUser, filterEkskul || null);
+
+      } else if (type === 'KEHADIRAN') {
+        google.script.run
+          .withSuccessHandler(data => {
+            currentReportData = data;
+            let rows = data.length === 0 
+              ? `<tr><td colspan="8" class="p-4 text-center text-xs text-gray-400">Tidak ada data kehadiran ditemukan.</td></tr>`
+              : data.map((r, i) => `
+                  <tr class="border-b">
+                    <td class="p-2 text-xs text-center">${i + 1}</td>
+                    <td class="p-2 text-xs font-semibold">${r.nama}</td>
+                    <td class="p-2 text-xs text-center">${r.kelas}</td>
+                    <td class="p-2 text-xs text-center">${r.hadir}</td>
+                    <td class="p-2 text-xs text-center">${r.sakit}</td>
+                    <td class="p-2 text-xs text-center">${r.izin}</td>
+                    <td class="p-2 text-xs text-center">${r.alpa}</td>
+                    <td class="p-2 text-xs text-center font-bold">${r.persentase}% (${r.hadir}/${r.total})</td>
+                  </tr>
+                `).join('');
+
+            printArea.innerHTML = `
+              ${kopSurat}
+              <h4 class="font-bold text-center text-sm uppercase mb-4">LAPORAN REKAPITULASI KEHADIRAN SISWA</h4>
+              <table class="w-full text-left border-collapse border text-xs">
+                <thead>
+                  <tr class="bg-gray-100 border-b">
+                    <th class="p-2 border text-center">No</th>
+                    <th class="p-2 border">Nama Siswa</th>
+                    <th class="p-2 border text-center">Kelas</th>
+                    <th class="p-2 border text-center">Hadir</th>
+                    <th class="p-2 border text-center">Sakit</th>
+                    <th class="p-2 border text-center">Izin</th>
+                    <th class="p-2 border text-center">Alpa</th>
+                    <th class="p-2 border text-center">Persentase</th>
+                  </tr>
+                </thead>
+                <tbody>${rows}</tbody>
+              </table>
+            `;
+          })
+          .getRekapKehadiran(currentUser, filterEkskul || null, appSettings.semester, appSettings.tahunAjaran);
+
+      } else if (type === 'NILAI') {
+        google.script.run
+          .withSuccessHandler(data => {
+            currentReportData = data;
+            let rows = data.length === 0 
+              ? `<tr><td colspan="7" class="p-4 text-center text-xs text-gray-400">Tidak ada data nilai ditemukan.</td></tr>`
+              : data.map((n, i) => `
+                  <tr class="border-b">
+                    <td class="p-2 text-xs text-center">${i + 1}</td>
+                    <td class="p-2 text-xs font-semibold">${n.namaSiswa}</td>
+                    <td class="p-2 text-xs text-center">${n.kelas}</td>
+                    <td class="p-2 text-xs">${n.namaEkskul}</td>
+                    <td class="p-2 text-xs text-center font-bold">${n.angka}</td>
+                    <td class="p-2 text-xs text-center font-bold">${n.predikat}</td>
+                    <td class="p-2 text-xs">${n.catatan}</td>
+                  </tr>
+                `).join('');
+
+            printArea.innerHTML = `
+              ${kopSurat}
+              <h4 class="font-bold text-center text-sm uppercase mb-4">LAPORAN PENILAIAN EKSTRAKURIKULER SISWA</h4>
+              <table class="w-full text-left border-collapse border text-xs">
+                <thead>
+                  <tr class="bg-gray-100 border-b">
+                    <th class="p-2 border text-center">No</th>
+                    <th class="p-2 border">Nama Siswa</th>
+                    <th class="p-2 border text-center">Kelas</th>
+                    <th class="p-2 border">Ekstrakurikuler</th>
+                    <th class="p-2 border text-center">Nilai</th>
+                    <th class="p-2 border text-center">Predikat</th>
+                    <th class="p-2 border">Catatan Perkembangan</th>
+                  </tr>
+                </thead>
+                <tbody>${rows}</tbody>
+              </table>
+            `;
+          })
+          .getNilaiData(currentUser, filterEkskul || null, appSettings.semester, appSettings.tahunAjaran);
+      }
+    }
+
+    function exportReportCSV() {
+      if (!currentReportData || currentReportData.length === 0) {
+        showAlert('Tidak ada data untuk diekspor ke CSV!', 'error');
+        return;
+      }
+
+      const headers = Object.keys(currentReportData[0]);
+      const csvRows = [headers.join(',')];
+
+      currentReportData.forEach(row => {
+        const values = headers.map(h => `"${String(row[h] || '').replace(/"/g, '""')}"`);
+        csvRows.push(values.join(','));
+      });
+
+      const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Laporan_${currentReportType}_SMADITA.csv`;
+      link.click();
+      URL.revokeObjectURL(url);
+    }
+
+    // ==========================================
+    // MODULE: ADMIN USER MANAGEMENT
+    // ==========================================
+
+    function renderUsersManagement() {
+      const container = document.getElementById('viewContainer');
+      container.innerHTML = `
+        <div class="bg-white p-6 rounded-xl shadow-sm border">
+          <div class="mb-6">
+            <h2 class="text-lg font-bold text-gray-800"><i class="fa-solid fa-users-gear mr-2 text-smaditaRed"></i>Persetujuan & Kelola Pengguna</h2>
+            <p class="text-xs text-gray-500">Verifikasi registrasi akun pelatih dan siswa</p>
+          </div>
+
+          <div id="usersTableContainer" class="overflow-x-auto">
+            <p class="text-center text-xs text-gray-400 py-6"><i class="fa-solid fa-spinner fa-spin"></i> Memuat daftar pengguna...</p>
+          </div>
+        </div>
+      `;
+
+      google.script.run
+        .withSuccessHandler(users => {
+          const uContainer = document.getElementById('usersTableContainer');
+          let html = `
+            <table class="w-full text-left text-sm border-collapse">
+              <thead>
+                <tr class="bg-gray-100 text-xs uppercase text-gray-600 border-b">
+                  <th class="p-3">Nama Lengkap</th>
+                  <th class="p-3">Username</th>
+                  <th class="p-3">Role</th>
+                  <th class="p-3">Ekstra Pilihan</th>
+                  <th class="p-3 text-center">Status</th>
+                  <th class="p-3 text-center">Aksi</th>
+                </tr>
+              </thead>
+              <tbody>
+          `;
+
+          users.forEach(u => {
+            html += `
+              <tr class="border-b hover:bg-gray-50">
+                <td class="p-3 font-semibold text-gray-800">${u.fullName}</td>
+                <td class="p-3 text-xs text-gray-600">${u.username}</td>
+                <td class="p-3 text-xs font-bold text-gray-600">${u.role}</td>
+                <td class="p-3 text-xs text-gray-600">${u.namaEkskul || '-'}</td>
+                <td class="p-3 text-center">
+                  <span class="px-2.5 py-1 rounded-full text-xs font-bold ${u.status === 'APPROVED' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}">
+                    ${u.status}
+                  </span>
+                </td>
+                <td class="p-3 text-center space-x-2">
+                  ${u.status === 'PENDING' ? `
+                    <button onclick="setUserStatus('${u.userID}', 'APPROVED')" class="bg-green-600 text-white text-xs px-2.5 py-1 rounded hover:bg-green-700">Setujui</button>
+                    <button onclick="setUserStatus('${u.userID}', 'REJECTED')" class="bg-red-600 text-white text-xs px-2.5 py-1 rounded hover:bg-red-700">Tolak</button>
+                  ` : '<span class="text-xs text-gray-400">-</span>'}
+                </td>
+              </tr>
+            `;
+          });
+
+          html += `</tbody></table>`;
+          uContainer.innerHTML = html;
+        })
+        .getAdminUsers(currentUser);
+    }
+
+    function setUserStatus(targetID, status) {
+      google.script.run
+        .withSuccessHandler(res => {
+          if (res.success) {
+            showAlert(res.message, 'success');
+            refreshMasterSelects(() => renderUsersManagement());
+          } else {
+            showAlert(res.message, 'error');
+          }
+        })
+        .updateUserStatus(currentUser, targetID, status);
+    }
+
+    // ==========================================
+    // MODULE: PENGATURAN SEMESTER
+    // ==========================================
+
+    function renderSettingsModule() {
+      const container = document.getElementById('viewContainer');
+      container.innerHTML = `
+        <div class="bg-white p-6 rounded-xl shadow-sm border max-w-md mx-auto">
+          <h2 class="text-lg font-bold text-gray-800 mb-4"><i class="fa-solid fa-sliders mr-2 text-smaditaRed"></i>Pengaturan Semester</h2>
+          
+          <form onsubmit="handleSaveSettings(event)" class="space-y-4">
+            <div>
+              <label class="block text-xs font-semibold text-gray-600 mb-1">Semester Aktif</label>
+              <select id="setSemester" class="w-full border rounded-lg px-3 py-2 text-sm">
+                <option value="Ganjil" ${appSettings.semester === 'Ganjil' ? 'selected' : ''}>Ganjil</option>
+                <option value="Genap" ${appSettings.semester === 'Genap' ? 'selected' : ''}>Genap</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-gray-600 mb-1">Tahun Ajaran</label>
+              <input type="text" id="setTahun" value="${appSettings.tahunAjaran}" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="Contoh: 2026/2027">
+            </div>
+            <button type="submit" class="w-full bg-smaditaRed hover:bg-smaditaRedHover text-white py-2.5 rounded-lg text-sm font-semibold">
+              Simpan Pengaturan
+            </button>
+          </form>
+        </div>
+      `;
+    }
+
+    function handleSaveSettings(e) {
+      e.preventDefault();
+      const settings = {
+        semester: document.getElementById('setSemester').value,
+        tahunAjaran: document.getElementById('setTahun').value
+      };
+
+      google.script.run
+        .withSuccessHandler(res => {
+          if (res.success) {
+            appSettings = settings;
+            showAlert(res.message, 'success');
+          } else {
+            showAlert(res.message, 'error');
+          }
+        })
+        .saveSettings(currentUser, settings);
+    }
+
+    // ==========================================
+    // MODULE: ABOUT PAGE
+    // ==========================================
+
+    function renderAboutPage() {
+      const container = document.getElementById('viewContainer');
+      container.innerHTML = `
+        <div class="bg-white p-8 rounded-xl shadow-sm border max-w-xl mx-auto text-center space-y-4">
+          <img src="https://i.ibb.co.com/3ysFVhxP/IMG-5d0357f5-f1cf-4422-b59c-402168b0b72f.png" alt="Logo SMADITA" class="h-24 mx-auto mb-2">
+          
+          <h2 class="text-xl font-bold text-smaditaRed">Aplikasi Presensi & Penilaian Ekstrakurikuler</h2>
+          <p class="text-xs text-gray-500">SMAS Diponegoro Tumpang (SMADITA)</p>
+
+          <div class="border-t border-b py-4 space-y-2 text-sm text-gray-700">
+            <p class="font-bold text-gray-800">Dibuat Oleh:</p>
+            <p class="font-semibold text-smaditaRed">Mazid Azzaky (XII-C)</p>
+            <p class="font-semibold text-smaditaRed">Moch. Nezar Arroyyan (XII-C)</p>
+            
+            <p class="text-xs text-gray-500 pt-2 italic">
+              Keterangan: Siswa SMAs Diponegoro Tumpang dalam rangka menyelesaikan ujian praktik mata pelajaran Informatika.
+            </p>
+          </div>
+
+          <div class="text-xs text-gray-600 space-y-1">
+            <p><strong>Guru Informatika:</strong> Johan Andri Pratama, S.Kom,.Gr</p>
+            <p><strong>Tahun Ajaran:</strong> 2026-2027</p>
+          </div>
+        </div>
+      `;
+    }
+  </script>
+</body>
+</html>
